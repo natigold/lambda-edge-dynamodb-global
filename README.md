@@ -70,4 +70,4 @@ make clean
 sam delete
 ```
 
-** Note,** that some resources main be retained even after the stack was deleted, such as the S3 buckets created, CloudWatch logs, and more. You may need to delete those manually, if you so require.
+ *** Note, *** that some resources main be retained even after the stack was deleted, such as the S3 buckets created, CloudWatch logs, and more. You may need to delete those manually, if you so require.

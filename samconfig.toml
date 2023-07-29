@@ -1,0 +1,11 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "lambda-edge-dynamodb-global"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-edx6b6q8t4yo"
+s3_prefix = "lambda-edge-dynamodb-global"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND"
+image_repositories = []
+confirm_changeset = false

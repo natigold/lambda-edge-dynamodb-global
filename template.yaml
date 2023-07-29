@@ -1,0 +1,136 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: |
+  lambda-edge-dynamodb-global
+  Sample SAM Template for lambda-edge-dynamodb-global
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Domain
+        Parameters:
+          - SubDomain
+          - DomainName
+
+Rules:
+  OnlyUsEast1:
+    Assertions:
+      - Assert:
+          Fn::Equals:
+            - !Ref AWS::Region
+            - us-east-1
+        AssertDescription: |
+          This template can only be deployed in the us-east-1 region.
+          This is because the ACM Certificate must be created in us-east-1
+
+Parameters:
+  SubDomain:
+    Description: The part of a website address before your DomainName - e.g. www or img
+    Type: String
+    Default: www
+    AllowedPattern: ^[^.]*$
+  DomainName:
+    Description: The part of a website address after your SubDomain - e.g. example.com
+    Type: String
+  HostedZoneId:
+    Description: Route53 HostedZoneId for the domain e.g. Z23ABC4XYZL05B
+    Type: String
+  CreateApex:
+    Description: Create an Apex Alias in CloudFront distribution - yes/no
+    Type: String
+    Default: 'no'
+    AllowedValues: ['yes','no']
+  ContentVersionId:
+    Description: Static contect version ID 
+    Type: String
+    Default: '1.0'
+  CreateDNS:
+    Description: Create a DNS record inside the same account
+    Type: String
+    Default: 'yes'
+    AllowedValues: ['yes','no']
+
+Conditions:
+  CreateApexConfig: !Equals
+    - !Ref CreateApex
+    - 'yes'
+  CreateDNSConfig: !Equals
+    - !Ref CreateDNS
+    - 'yes'
+
+Resources:
+    SharedInfra:
+      Type: AWS::Serverless::Application
+      Properties:
+        Location: ./templates/shared-infra.yaml
+    RoutingService:
+      Type: AWS::Serverless::Application
+      Properties:
+        Location: ./templates/routing-service.yaml
+    CopyResources:
+      Type: AWS::Serverless::Application
+      Properties:
+        Location: ./templates/copy-resources.yaml
+        Parameters:
+          S3BucketRoot: !GetAtt SharedInfra.Outputs.S3BucketRoot
+          ContentVersionId: !Ref ContentVersionId
+      DependsOn: SharedInfra
+    CertificateConfig:
+      Type: AWS::Serverless::Application
+      Condition: CreateDNSConfig
+      Properties:
+        Location: ./templates/acm-config.yaml
+        Parameters:
+          SubDomain: !Ref SubDomain
+          DomainName: !If [ CreateDNSConfig, !Ref DomainName, !Ref 'AWS::NoValue' ]
+          HostedZoneId: !If [ CreateDNSConfig, !Ref HostedZoneId, !Ref 'AWS::NoValue' ]
+          CreateApex: !If [ CreateDNSConfig, !Ref CreateApex, !Ref 'AWS::NoValue' ]
+    CloudfrontDistribution:
+      Type: AWS::Serverless::Application
+      Properties:
+        Location: ./templates/cloudfront-dist.yaml
+        Parameters:
+          SubDomain: !Ref SubDomain
+          DomainName: !If [ CreateDNSConfig, !Ref DomainName, !Ref 'AWS::NoValue' ]
+          CreateApex: !If [ CreateDNSConfig, !Ref CreateApex, !Ref 'AWS::NoValue' ]
+          CreateDNS: !Ref CreateDNS
+          RouterEdgeFunctionVersion: !GetAtt RoutingService.Outputs.RouterEdgeFunctionVersion
+          S3BucketRoot: !GetAtt SharedInfra.Outputs.S3BucketRoot
+          S3BucketRootDomainName: !GetAtt SharedInfra.Outputs.S3BucketRootDomainName
+          S3BucketLogsDomainName: !GetAtt SharedInfra.Outputs.S3BucketLogsDomainName
+          S3BucketRootArn: !GetAtt SharedInfra.Outputs.S3BucketRootArn
+          Certificate: !GetAtt CertificateConfig.Outputs.Certificate
+      DependsOn: 
+        - SharedInfra
+        - RoutingService
+        - CertificateConfig
+    DomainRecordConfig:
+      Type: AWS::Serverless::Application
+      Condition: CreateDNSConfig
+      Properties:
+        Location: ./templates/domain-record.yaml
+        Parameters:
+          SubDomain: !Ref SubDomain
+          DomainName: !If [ CreateDNSConfig, !Ref DomainName, !Ref 'AWS::NoValue' ]
+          HostedZoneId: !If [ CreateDNSConfig, !Ref HostedZoneId, !Ref 'AWS::NoValue' ]
+          CreateApex: !If [ CreateDNSConfig, !Ref CreateApex, !Ref 'AWS::NoValue' ]
+          CloudFrontDistribution: !GetAtt CloudfrontDistribution.Outputs.CloudFrontDistributionId
+      DependsOn: CloudfrontDistribution
+
+Outputs:
+  RoutingUrlTable:
+    Description: RoutingUrlTable DynamoDB table name
+    Value: !GetAtt RoutingService.Outputs.RoutingUrlTable
+
+  RouterEdgeFunctionVersion:
+    Description: RouterEdgeFunction Lambda Function Version
+    Value: !GetAtt RoutingService.Outputs.RouterEdgeFunctionVersion
+    
+  CloudFrontDistribution:
+    Description: CloudFront distribution
+    Value: !GetAtt CloudfrontDistribution.Outputs.CloudFrontDistributionId
+
+  CloudFrontDomainName:
+    Description: Website address (subdomain)
+    Value: !Sub '${SubDomain}.${DomainName}'

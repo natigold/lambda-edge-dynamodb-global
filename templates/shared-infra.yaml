@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: |
+  lambda-edge-dynamodb-global
+  SAM Template for infra components
+
+Rules:
+  OnlyUsEast1:
+    Assertions:
+      - Assert:
+          Fn::Equals:
+            - !Ref AWS::Region
+            - us-east-1
+        AssertDescription: |
+          This template can only be deployed in the us-east-1 region.
+          This is because the ACM Certificate must be created in us-east-1
+
+Resources:
+  # Cloudfront logs buckets 
+  S3BucketLogs:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        - Key: Project
+          Value: CFLEDDB
+
+  # Root bucket for static files
+  S3BucketRoot:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LoggingConfiguration:
+        DestinationBucketName: !Ref 'S3BucketLogs'
+        LogFilePrefix: 'origin/'
+      Tags:
+        - Key: Project
+          Value: CFLEDDB
+
+Outputs:
+  S3BucketRoot:
+    Description: S3BucketRoot 
+    Value: !Ref S3BucketRoot
+    
+  S3BucketRootArn:
+    Description: S3BucketRoot Arn
+    Value: !GetAtt S3BucketRoot.Arn
+    
+  S3BucketRootDomainName:
+    Description: S3BucketRoot Domain Name
+    Value: !GetAtt S3BucketRoot.DomainName
+
+  S3BucketLogsDomainName:
+    Description: S3BucketLogs Domain Name
+    Value: !GetAtt S3BucketLogs.DomainName

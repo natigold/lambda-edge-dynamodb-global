@@ -1,0 +1,59 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: |
+  acm-config
+  CloudFormation template to deploy an ACM certificate for a chosen subdomain
+
+Parameters:
+  #ACM Parameters
+  SubDomain:
+    Description: The part of a website address before your DomainName - e.g. www or img
+    Type: String
+    Default: www
+    AllowedPattern: ^[^.]*$
+  DomainName:
+    Description: The part of a website address after your SubDomain - e.g. example.com
+    Type: String
+  HostedZoneId:
+    Description: Route53 HostedZoneId for the domain e.g. Z23ABC4XYZL05B
+    Type: String
+  CreateApex:
+    Description: Create an Apex Alias in CloudFront distribution - yes/no
+    Type: String
+    Default: 'no'
+    AllowedValues: ['yes','no']
+
+Conditions:
+  CreateApexConfig:  !Equals
+    - !Ref CreateApex
+    - 'yes'
+
+Resources:
+
+  # ACM certification
+  Certificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Sub '${SubDomain}.${DomainName}'
+      SubjectAlternativeNames:
+        Fn::If:
+          - CreateApexConfig
+          - - Ref: DomainName
+          - Ref: AWS::NoValue
+      DomainValidationOptions:
+        - DomainName: !Sub '${SubDomain}.${DomainName}'
+          HostedZoneId: !Ref HostedZoneId
+        - Fn::If:
+          - CreateApexConfig
+          - DomainName: !Ref DomainName
+            HostedZoneId: !Ref HostedZoneId
+          - Ref: AWS::NoValue
+      ValidationMethod: DNS
+      Tags:
+        - Key: Project
+          Value: CFLEDDB
+
+Outputs:
+  Certificate:
+    Description: ACM Certificate Id
+    Value: !Ref Certificate

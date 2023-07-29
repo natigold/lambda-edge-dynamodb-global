@@ -1,0 +1,185 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: |
+  lambda-edge-dynamodb-global
+  SAM Template for Cloudfront Distribution for a new static website with L@E
+Globals:
+  Function:
+    Timeout: 3
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Domain
+        Parameters:
+          - SubDomain
+          - DomainName
+
+Rules:
+  OnlyUsEast1:
+    Assertions:
+      - Assert:
+          Fn::Equals:
+            - !Ref AWS::Region
+            - us-east-1
+        AssertDescription: |
+          This template can only be deployed in the us-east-1 region.
+          This is because the ACM Certificate must be created in us-east-1
+
+Parameters:
+  #ACM Parameters
+  SubDomain:
+    Description: The part of a website address before your DomainName - e.g. www or img
+    Type: String
+    Default: www
+    AllowedPattern: ^[^.]*$
+  DomainName:
+    Description: The part of a website address after your SubDomain - e.g. example.com
+    Type: String
+  CreateApex:
+    Description: Create an Apex Alias in CloudFront distribution - yes/no
+    Type: String
+    Default: 'no'
+    AllowedValues: ['yes','no']
+  RouterEdgeFunctionVersion:
+    Description: RouterEdgeFunction Lambda@Edge function version
+    Type: String
+  S3BucketRoot:
+    Description: S3BucketRoot Id 
+    Type: String
+  S3BucketRootDomainName:
+    Description: S3BucketRoot DomainName 
+    Type: String
+  S3BucketLogsDomainName:
+    Description: S3BucketLogs DomainName
+    Type: String
+  S3BucketRootArn:
+    Description: S3BucketRoot ARN 
+    Type: String
+  Certificate:
+    Description: ACM Certificate to validate the domain alias
+    Type: String
+  CreateDNS:
+    Description: Create a DNS/alias record for a domain - yes/no
+    Type: String
+    Default: 'no'
+    AllowedValues: ['yes','no']
+
+Conditions:
+  CreateApexConfig:  !Equals
+    - !Ref CreateApex
+    - 'yes'
+  CreateDNSConfig:  !Equals
+    - !Ref CreateDNS
+    - 'yes'
+
+Resources:
+  S3BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref 'S3BucketRoot'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - s3:GetObject
+            Effect: Allow
+            Resource: !Sub '${S3BucketRootArn}/*'
+            Principal:
+              CanonicalUser: !GetAtt CloudFrontOriginAccessIdentity.S3CanonicalUserId
+
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - !If [ CreateDNSConfig, !Sub '${SubDomain}.${DomainName}', !Ref 'AWS::NoValue' ]
+          - !If [ CreateApexConfig, !Ref DomainName, !Ref 'AWS::NoValue' ]
+        DefaultCacheBehavior:
+          Compress: true
+          DefaultTTL: 0 # 86400
+          ForwardedValues:
+            QueryString: true
+          MaxTTL: 0 # 31536000
+          TargetOriginId: !Sub 'S3-${AWS::StackName}-root'
+          ViewerProtocolPolicy: 'redirect-to-https'
+          ResponseHeadersPolicyId: !Ref ResponseHeadersPolicy
+          LambdaFunctionAssociations:
+          - EventType: viewer-request
+            IncludeBody: false
+            LambdaFunctionARN: !Ref RouterEdgeFunctionVersion
+        CustomErrorResponses:
+          - ErrorCachingMinTTL: 60
+            ErrorCode: 404
+            ResponseCode: 404
+            ResponsePagePath: '/404.html'
+          - ErrorCachingMinTTL: 60
+            ErrorCode: 403
+            ResponseCode: 403
+            ResponsePagePath: '/403.html'
+        Enabled: true
+        HttpVersion: 'http2'
+        DefaultRootObject: 'index.html'
+        IPV6Enabled: true
+        Logging:
+          Bucket: !Ref S3BucketLogsDomainName
+          IncludeCookies: false
+          Prefix: 'cdn/'
+        Origins:
+          - DomainName: !Ref S3BucketRootDomainName
+            Id: !Sub 'S3-${AWS::StackName}-root'
+            S3OriginConfig:
+              OriginAccessIdentity:
+                !Join ['', ['origin-access-identity/cloudfront/', !Ref CloudFrontOriginAccessIdentity]]
+        PriceClass: 'PriceClass_All'
+        ViewerCertificate:
+          !If
+          - CreateDNSConfig
+          - 
+            AcmCertificateArn: !Ref Certificate
+            MinimumProtocolVersion: 'TLSv1.1_2016'
+            SslSupportMethod: 'sni-only'
+          - !Ref "AWS::NoValue"
+      Tags:
+        - Key: Project
+          Value: CFLEDDB
+
+  CloudFrontOriginAccessIdentity:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: !If [ CreateDNSConfig, !Sub 'CloudFront OAI for ${SubDomain}.${DomainName}', !Ref 'AWS::NoValue' ]
+
+        
+  ResponseHeadersPolicy:
+      Type: AWS::CloudFront::ResponseHeadersPolicy
+      Properties: 
+        ResponseHeadersPolicyConfig: 
+          Name: !Sub "${AWS::StackName}-static-site-security-headers"
+          SecurityHeadersConfig: 
+            StrictTransportSecurity: 
+              AccessControlMaxAgeSec: 63072000
+              IncludeSubdomains: true
+              Override: true
+              Preload: true
+            ContentSecurityPolicy: 
+              ContentSecurityPolicy: "default-src 'none'; img-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'"
+              Override: true
+            ContentTypeOptions: 
+              Override: true
+            FrameOptions:
+              FrameOption: DENY
+              Override: true
+            ReferrerPolicy: 
+              ReferrerPolicy: "same-origin"
+              Override: true
+            XSSProtection: 
+              ModeBlock: true
+              Override: true
+              Protection: true
+
+Outputs:
+  CloudFrontDistributionId:
+    Description: CloudFront distribution
+    Value: !GetAtt CloudFrontDistribution.DomainName

@@ -1,0 +1,100 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: |
+  lambda-edge-dynamodb-global
+  Sample SAM Template for RouterEdgeFunction Lambda function and DynamoDB
+
+Globals:
+  Function:
+    Timeout: 5
+
+Rules:
+  OnlyUsEast1:
+    Assertions:
+      - Assert:
+          Fn::Equals:
+            - !Ref AWS::Region
+            - us-east-1
+        AssertDescription: |
+          This template can only be deployed in the us-east-1 region.
+          This is because the ACM Certificate must be created in us-east-1
+
+Resources:
+  RoutingUrlTable:
+    Type: AWS::DynamoDB::GlobalTable
+    Properties:
+      TableName: RoutingUrlTable
+      AttributeDefinitions:
+        - AttributeName: url
+          AttributeType: S
+        - AttributeName: type
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: url
+          KeyType: HASH
+        - AttributeName: type
+          KeyType: RANGE
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      Replicas:
+        - DeletionProtectionEnabled: false
+          Region: us-east-1
+        - DeletionProtectionEnabled: false
+          Region: eu-west-1
+        - DeletionProtectionEnabled: false
+          Region: ap-southeast-1
+        - DeletionProtectionEnabled: false
+          Region: eu-central-1
+
+  RouterEdgeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: RouterEdgeFunction
+      CodeUri: ../src/handlers/router-function/
+      Handler: app.lambdaHandler
+      Runtime: nodejs18.x
+      Architectures:
+        - x86_64
+      MemorySize: 128 # Maximum allow for Cloudfront event associated viewer-request/response L@E functions
+      AutoPublishAlias: live
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: "AllowLambdaServiceToAssumeRole"
+            Effect: "Allow"
+            Action: 
+              - "sts:AssumeRole"
+            Principal:
+              Service: 
+                - "lambda.amazonaws.com"
+                - "edgelambda.amazonaws.com"
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action: 
+                - dynamodb:GetItem
+                - dynamodb:Scan
+                - dynamodb:Query
+                - dynamodb:BatchGetItem
+                - dynamodb:DescribeTable
+              Resource:
+                - !Sub arn:aws:dynamodb:*:${AWS::AccountId}:table/${RoutingUrlTable}
+                - !Sub arn:aws:dynamodb:*:${AWS::AccountId}:table/${RoutingUrlTable}/index/*
+      Tags:
+        Project: CFLEDDB
+
+Outputs:
+  RoutingUrlTable:
+    Description: RoutingUrlTable DynamoDB table name
+    Value: !Ref RoutingUrlTable
+
+  RouterEdgeFunctionVersion:
+    Description: RouterEdgeFunction Lambda Function Version
+    Value: !Ref RouterEdgeFunction.Version
+    
+  RouterEdgeFunctionIamRole:
+    Description: Implicit IAM Role created for RouterEdgeFunction function
+    Value: !GetAtt RouterEdgeFunctionRole.Arn

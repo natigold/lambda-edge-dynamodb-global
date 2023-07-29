@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: |
+  lambda-edge-dynamodb-global
+  SAM Template for a custom resource (copy static assets to S3) 
+Globals:
+  Function:
+    Timeout: 3
+
+Rules:
+  OnlyUsEast1:
+    Assertions:
+      - Assert:
+          Fn::Equals:
+            - !Ref AWS::Region
+            - us-east-1
+        AssertDescription: |
+          This template can only be deployed in the us-east-1 region.
+          This is because the ACM Certificate must be created in us-east-1
+
+Parameters:
+  S3BucketRoot:
+    Description: S3BucketRoot
+    Type: String
+  ContentVersionId:
+    Description: Static contect version ID 
+    Type: String
+    Default: '1.0'
+
+Resources:
+  # Upload static assets to S3 bucket (Lambda function and custom resource)
+  CopyCustomResource:
+    Type: Custom::S3CustomResource
+    Properties:
+      ServiceToken: !GetAtt CopyFunction.Arn
+      BucketName: !Ref S3BucketRoot
+      ContentVersionId: !Ref ContentVersionId
+      Tags:
+        - Key: Project
+          Value: CFLEDDB
+  
+  CopyLayerVersion:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      ContentUri: ../src/handlers/copy-files/
+      CompatibleRuntimes:
+        - nodejs16.x
+
+  CopyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../assets
+      Handler: index.staticHandler
+      Layers:
+        - !Ref CopyLayerVersion
+      Runtime: nodejs16.x
+      Timeout: 300
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref S3BucketRoot
+      Tags:
+        Project: CFLEDDB

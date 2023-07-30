@@ -37,6 +37,7 @@ Parameters:
   DomainName:
     Description: The part of a website address after your SubDomain - e.g. example.com
     Type: String
+    Default: example.com
   CreateApex:
     Description: Create an Apex Alias in CloudFront distribution - yes/no
     Type: String
@@ -60,6 +61,7 @@ Parameters:
   Certificate:
     Description: ACM Certificate to validate the domain alias
     Type: String
+    Default: ''
   CreateDNS:
     Description: Create a DNS/alias record for a domain - yes/no
     Type: String
@@ -149,8 +151,7 @@ Resources:
     Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
     Properties:
       CloudFrontOriginAccessIdentityConfig:
-        Comment: !If [ CreateDNSConfig, !Sub 'CloudFront OAI for ${SubDomain}.${DomainName}', !Ref 'AWS::NoValue' ]
-
+        Comment: !Sub 'CloudFront OAI for ${SubDomain}.${DomainName}'
         
   ResponseHeadersPolicy:
       Type: AWS::CloudFront::ResponseHeadersPolicy

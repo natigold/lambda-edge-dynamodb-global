@@ -83,9 +83,9 @@ Resources:
         Location: ./templates/acm-config.yaml
         Parameters:
           SubDomain: !Ref SubDomain
-          DomainName: !If [ CreateDNSConfig, !Ref DomainName, !Ref 'AWS::NoValue' ]
-          HostedZoneId: !If [ CreateDNSConfig, !Ref HostedZoneId, !Ref 'AWS::NoValue' ]
-          CreateApex: !If [ CreateDNSConfig, !Ref CreateApex, !Ref 'AWS::NoValue' ]
+          DomainName: !Ref DomainName
+          HostedZoneId: !Ref HostedZoneId
+          CreateApex: !Ref CreateApex
     CloudfrontDistribution:
       Type: AWS::Serverless::Application
       Properties:
@@ -100,11 +100,10 @@ Resources:
           S3BucketRootDomainName: !GetAtt SharedInfra.Outputs.S3BucketRootDomainName
           S3BucketLogsDomainName: !GetAtt SharedInfra.Outputs.S3BucketLogsDomainName
           S3BucketRootArn: !GetAtt SharedInfra.Outputs.S3BucketRootArn
-          Certificate: !GetAtt CertificateConfig.Outputs.Certificate
+          Certificate: !If [ CreateDNSConfig, !GetAtt CertificateConfig.Outputs.Certificate, !Ref 'AWS::NoValue' ]
       DependsOn: 
         - SharedInfra
         - RoutingService
-        - CertificateConfig
     DomainRecordConfig:
       Type: AWS::Serverless::Application
       Condition: CreateDNSConfig
@@ -112,9 +111,9 @@ Resources:
         Location: ./templates/domain-record.yaml
         Parameters:
           SubDomain: !Ref SubDomain
-          DomainName: !If [ CreateDNSConfig, !Ref DomainName, !Ref 'AWS::NoValue' ]
-          HostedZoneId: !If [ CreateDNSConfig, !Ref HostedZoneId, !Ref 'AWS::NoValue' ]
-          CreateApex: !If [ CreateDNSConfig, !Ref CreateApex, !Ref 'AWS::NoValue' ]
+          DomainName: !Ref DomainName
+          HostedZoneId: !Ref HostedZoneId
+          CreateApex: !Ref CreateApex
           CloudFrontDistribution: !GetAtt CloudfrontDistribution.Outputs.CloudFrontDistributionId
       DependsOn: CloudfrontDistribution
 

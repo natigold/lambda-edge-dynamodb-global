@@ -1,5 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Transform: AWS::Serverless-2016-10-31
+Transform: 
+- AWS::LanguageExtensions
+- AWS::Serverless-2016-10-31
 Description: |
   lambda-edge-dynamodb-global
   Sample SAM Template for RouterEdgeFunction Lambda function and DynamoDB
@@ -18,6 +20,18 @@ Rules:
         AssertDescription: |
           This template can only be deployed in the us-east-1 region.
           This is because the ACM Certificate must be created in us-east-1
+      - Assert:
+          Fn::Contains:
+            - !Ref Regions
+            - us-east-1
+        AssertDescription: |
+          This template can only be deployed in the us-east-1 region. 
+          DynamoDB Global table regions has to include us-east-1
+
+Parameters:
+  Regions:
+    Description: List of regions to replicate the DynamoDB global table to. Region us-east-1 is mandatory
+    Type: CommaDelimitedList
 
 Resources:
   RoutingUrlTable:

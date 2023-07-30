@@ -37,11 +37,12 @@ The first `MAKE` command will build and package the custom resource needed to co
 The second command will build the source of your application. The third will package and deploy the solution to AWS, using the following parameters which you will need to adjust:
 
 * **CreateDNS** (optional): Optionally create a Route53 A record and CloudFront distribution. Default is [yes]
-* **SubDomain** (optional): the sub domain that will be used to point to the static website. Defaults to [www]. 
-* **DomainName** (optional): the domain name (e.g. example.com) pointed to Route53. Only required if used together with `CreateDNS=true`.
-* **HostedZoneId** (optional): Route53 Hosted Zone Id used to host the chosen domain's DNS records. Only required if used together with `CreateDNS=true`.
+* **SubDomain** (optional): The sub domain that will be used to point to the static website. Defaults to [www] 
+* **DomainName** (optional): The domain name (e.g. example.com) pointed to Route53. Only required if used together with `CreateDNS=true`
+* **HostedZoneId** (optional): Route53 Hosted Zone Id used to host the chosen domain's DNS records. Only required if used together with `CreateDNS=true`
 * **CreateApex** (optional): Creates an Alias to the domain apex (example.com) in your CloudFront configuration. Default is [no]
-* **ContentVersionId** (optional): static content version number. Default is [1.0]
+* **ContentVersionId** (optional): Static content version number. Default is [1.0]
+* **Regions**: List of regions to replicate the DynamoDB Global table to. Must include us-east-1
 
 `SAM CLI` will then display a series of prompts:
 

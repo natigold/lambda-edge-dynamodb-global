@@ -23,6 +23,13 @@ Rules:
         AssertDescription: |
           This template can only be deployed in the us-east-1 region.
           This is because the ACM Certificate must be created in us-east-1
+      - Assert:
+          Fn::Contains:
+            - !Ref Regions
+            - us-east-1
+        AssertDescription: |
+          This template can only be deployed in the us-east-1 region. 
+          DynamoDB Global table regions has to include us-east-1
 
 Parameters:
   SubDomain:
@@ -50,6 +57,10 @@ Parameters:
     Type: String
     Default: 'yes'
     AllowedValues: ['yes','no']
+  Regions:
+    Description: (FFU) List of regions to replicate the DynamoDB global table to. Region us-east-1 is mandatory
+    Type: CommaDelimitedList
+    Default: 'us-east-1,eu-west-1,ap-southeast-1,eu-central-1'
 
 Conditions:
   CreateApexConfig: !Equals
@@ -68,6 +79,8 @@ Resources:
       Type: AWS::Serverless::Application
       Properties:
         Location: ./templates/routing-service.yaml
+        Parameters:
+          Regions: !Join [',', !Ref Regions]
     CopyResources:
       Type: AWS::Serverless::Application
       Properties:

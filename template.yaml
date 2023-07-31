@@ -1,5 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Transform: AWS::Serverless-2016-10-31
+Transform: 
+- AWS::LanguageExtensions
+- AWS::Serverless-2016-10-31
 Description: |
   lambda-edge-dynamodb-global
   Sample SAM Template for lambda-edge-dynamodb-global
@@ -71,64 +73,65 @@ Conditions:
     - 'yes'
 
 Resources:
-    SharedInfra:
-      Type: AWS::Serverless::Application
-      Properties:
-        Location: ./templates/shared-infra.yaml
-    RoutingService:
-      Type: AWS::Serverless::Application
-      Properties:
-        Location: ./templates/routing-service.yaml
-        Parameters:
-          Regions: !Join [',', !Ref Regions]
-    CopyResources:
-      Type: AWS::Serverless::Application
-      Properties:
-        Location: ./templates/copy-resources.yaml
-        Parameters:
-          S3BucketRoot: !GetAtt SharedInfra.Outputs.S3BucketRoot
-          ContentVersionId: !Ref ContentVersionId
-      DependsOn: SharedInfra
-    CertificateConfig:
-      Type: AWS::Serverless::Application
-      Condition: CreateDNSConfig
-      Properties:
-        Location: ./templates/acm-config.yaml
-        Parameters:
-          SubDomain: !Ref SubDomain
-          DomainName: !Ref DomainName
-          HostedZoneId: !Ref HostedZoneId
-          CreateApex: !Ref CreateApex
-    CloudfrontDistribution:
-      Type: AWS::Serverless::Application
-      Properties:
-        Location: ./templates/cloudfront-dist.yaml
-        Parameters:
-          SubDomain: !Ref SubDomain
-          DomainName: !If [ CreateDNSConfig, !Ref DomainName, !Ref 'AWS::NoValue' ]
-          CreateApex: !If [ CreateDNSConfig, !Ref CreateApex, !Ref 'AWS::NoValue' ]
-          CreateDNS: !Ref CreateDNS
-          RouterEdgeFunctionVersion: !GetAtt RoutingService.Outputs.RouterEdgeFunctionVersion
-          S3BucketRoot: !GetAtt SharedInfra.Outputs.S3BucketRoot
-          S3BucketRootDomainName: !GetAtt SharedInfra.Outputs.S3BucketRootDomainName
-          S3BucketLogsDomainName: !GetAtt SharedInfra.Outputs.S3BucketLogsDomainName
-          S3BucketRootArn: !GetAtt SharedInfra.Outputs.S3BucketRootArn
-          Certificate: !If [ CreateDNSConfig, !GetAtt CertificateConfig.Outputs.Certificate, !Ref 'AWS::NoValue' ]
-      DependsOn: 
-        - SharedInfra
-        - RoutingService
-    DomainRecordConfig:
-      Type: AWS::Serverless::Application
-      Condition: CreateDNSConfig
-      Properties:
-        Location: ./templates/domain-record.yaml
-        Parameters:
-          SubDomain: !Ref SubDomain
-          DomainName: !Ref DomainName
-          HostedZoneId: !Ref HostedZoneId
-          CreateApex: !Ref CreateApex
-          CloudFrontDistribution: !GetAtt CloudfrontDistribution.Outputs.CloudFrontDistributionId
-      DependsOn: CloudfrontDistribution
+  SharedInfra:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ./templates/shared-infra.yaml
+  RoutingService:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ./templates/routing-service.yaml
+      Parameters:
+        Regions: !Join [',', !Ref Regions]
+  CopyResources:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ./templates/copy-resources.yaml
+      Parameters:
+        S3BucketRoot: !GetAtt SharedInfra.Outputs.S3BucketRoot
+        ContentVersionId: !Ref ContentVersionId
+    DependsOn: SharedInfra
+  CertificateConfig:
+    Type: AWS::Serverless::Application
+    Condition: CreateDNSConfig
+    Properties:
+      Location: ./templates/acm-config.yaml
+      Parameters:
+        SubDomain: !Ref SubDomain
+        DomainName: !Ref DomainName
+        HostedZoneId: !Ref HostedZoneId
+        CreateApex: !Ref CreateApex
+  CloudfrontDistribution:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ./templates/cloudfront-dist.yaml
+      Parameters:
+        SubDomain: !Ref SubDomain
+        DomainName: !If [ CreateDNSConfig, !Ref DomainName, !Ref 'AWS::NoValue' ]
+        CreateApex: !If [ CreateDNSConfig, !Ref CreateApex, !Ref 'AWS::NoValue' ]
+        CreateDNS: !Ref CreateDNS
+        RouterEdgeFunctionVersion: !GetAtt RoutingService.Outputs.RouterEdgeFunctionVersion
+        S3BucketRoot: !GetAtt SharedInfra.Outputs.S3BucketRoot
+        S3BucketRootDomainName: !GetAtt SharedInfra.Outputs.S3BucketRootDomainName
+        S3BucketLogsDomainName: !GetAtt SharedInfra.Outputs.S3BucketLogsDomainName
+        S3BucketRootArn: !GetAtt SharedInfra.Outputs.S3BucketRootArn
+        Certificate: !If [ CreateDNSConfig, !GetAtt CertificateConfig.Outputs.Certificate, !Ref 'AWS::NoValue' ]
+    DependsOn: 
+      - SharedInfra
+      - RoutingService
+  DomainRecordConfig:
+    Type: AWS::Serverless::Application
+    Condition: CreateDNSConfig
+    Properties:
+      Location: ./templates/domain-record.yaml
+      Parameters:
+        SubDomain: !Ref SubDomain
+        DomainName: !Ref DomainName
+        HostedZoneId: !Ref HostedZoneId
+        CreateApex: !Ref CreateApex
+        CloudFrontDistribution: !GetAtt CloudfrontDistribution.Outputs.CloudFrontDistributionId
+        Regions: !Join [',', !Ref Regions]
+    DependsOn: CloudfrontDistribution
 
 Outputs:
   RoutingUrlTable:

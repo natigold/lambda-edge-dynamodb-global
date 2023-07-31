@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Transform: AWS::Serverless-2016-10-31
+Transform: AWS::LanguageExtensions
 Description: |
   domain-record
   CloudFormation template to deploy a Route53 A record pointing to Cloudfront distribution
@@ -33,6 +33,9 @@ Parameters:
   CloudFrontDistribution:
     Description: CloudFrontDistribution DomainName e.g. Z23ABC4XYZL05B
     Type: String
+  Regions:
+    Description: List of regions to replicate the DynamoDB global table to. Region us-east-1 is mandatory
+    Type: CommaDelimitedList
 
 Conditions:
   CreateApexConfig:  !Equals
@@ -40,7 +43,6 @@ Conditions:
     - 'yes'
 
 Resources:
-
   Route53RecordSetGroup:
     Type: AWS::Route53::RecordSetGroup
     Properties:
@@ -68,3 +70,50 @@ Resources:
           # The  following HosteZoneId is always used for alias records pointing to CF.
           HostedZoneId: 'Z2FDTNDATAQYW2'
 
+  Route53LatencyRecordSet1:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: !Sub '${SubDomain}.${DomainName}'
+      Type: 'TXT'
+      HostedZoneId: !Ref HostedZoneId
+      Region: 'us-east-1'
+      ResourceRecords: 
+        - '"us-east-1"'
+      SetIdentifier: ֿֿ'lbr_us-east-1'
+      TTL: '31540000'
+
+  Route53LatencyRecordSet2:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: !Sub '${SubDomain}.${DomainName}'
+      Type: 'TXT'
+      HostedZoneId: !Ref HostedZoneId
+      Region: 'eu-west-1'
+      ResourceRecords: 
+        - '"eu-west-1"'
+      SetIdentifier: ֿֿ'lbr_eu-west-1'
+      TTL: '31540000'
+
+  Route53LatencyRecordSet3:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: !Sub '${SubDomain}.${DomainName}'
+      Type: 'TXT'
+      HostedZoneId: !Ref HostedZoneId
+      Region: 'ap-southeast-1'
+      ResourceRecords: 
+        - '"ap-southeast-1"'
+      SetIdentifier: ֿֿ'lbr_ap-southeast-1'
+      TTL: '31540000'
+
+  Route53LatencyRecordSet4:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: !Sub '${SubDomain}.${DomainName}'
+      Type: 'TXT'
+      HostedZoneId: !Ref HostedZoneId
+      Region: 'eu-central-1'
+      ResourceRecords: 
+        - '"eu-central-1"'
+      SetIdentifier: ֿֿ'lbr_eu-central-1'
+      TTL: '31540000'

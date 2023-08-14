@@ -23,6 +23,9 @@ The application uses nested SAM/CloudFormation templates to deploy several AWS r
 * Docker - [Install Docker community edition](https://hub.docker.com/search/?type=edition&offering=community)
 * Domain (optional) - a registered domain name, such as example.com, pointed to a Route 53 hosted zone in the same AWS account in which you deploy this solution. In case you do not have a domain, you may still deploy this solution by setting the `CreateDNS` parameter to false
 
+## Architecture
+![lambda-edge-dynamodb-global](https://github.com/natigold/lambda-edge-dynamodb-global/assets/24603806/01147b2c-517c-44ea-aad8-18957a278767)
+
 ## Deploy the solution
 
 To build and deploy your application for the first time, run the following in your shell:

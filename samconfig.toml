@@ -9,3 +9,4 @@ region = "us-east-1"
 capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND"
 image_repositories = []
 confirm_changeset = false
+parameter_overrides = "SubDomain=\"edge\" DomainName=\"natigold.people.aws.dev\" HostedZoneId=\"Z0406159196VLN9PH2KSF\" CreateApex=\"no\" ContentVersionId=\"1.0\" CreateDNS=\"yes\" Regions=\"us-east-1,eu-west-1,ap-southeast-1,eu-central-1\""

@@ -43,7 +43,13 @@ Resources:
           AttributeType: S
         - AttributeName: type
           AttributeType: S
-      BillingMode: PAY_PER_REQUEST
+      BillingMode: PROVISIONED
+      WriteProvisionedThroughputSettings:
+        WriteCapacityAutoScalingSettings:
+          MaxCapacity: 5
+          MinCapacity: 5
+          TargetTrackingScalingPolicyConfiguration:
+            TargetValue: 80.0
       KeySchema:
         - AttributeName: url
           KeyType: HASH
@@ -53,12 +59,20 @@ Resources:
         StreamViewType: NEW_AND_OLD_IMAGES
       Replicas:
         - DeletionProtectionEnabled: false
+          ReadProvisionedThroughputSettings:
+            ReadCapacityUnits: 5
           Region: us-east-1
         - DeletionProtectionEnabled: false
+          ReadProvisionedThroughputSettings:
+            ReadCapacityUnits: 5
           Region: eu-west-1
         - DeletionProtectionEnabled: false
+          ReadProvisionedThroughputSettings:
+            ReadCapacityUnits: 5
           Region: ap-southeast-1
         - DeletionProtectionEnabled: false
+          ReadProvisionedThroughputSettings:
+            ReadCapacityUnits: 5
           Region: eu-central-1
 
   RouterEdgeFunction:
